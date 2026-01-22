@@ -4,6 +4,7 @@
 *.class
 *Test.java
 **/test/
+<<<<<<< HEAD
 
 # ===== Spring Boot local config =====
 /sky-server/src/main/resources/application-dev.yml
