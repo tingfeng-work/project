@@ -135,16 +135,88 @@ public class AutoFillAspect {
 
 # 文件上传
 
-TODO 需要补充
+文件上传，是指将本地图片、视频、音频等文件上传到服务器上，可以供其他用户浏览或下载的过程。
+
+实现文件上传服务，需要有存储的支持，那么我们的解决方案将以下几种：
+
+1. 直接将图片保存到服务的硬盘（SpringMVC 中的文件上传）
+
+   优点：开发便捷，成本低
+
+   缺点：扩容困难
+
+2. 使用分布式文件系统进行存储（比如：FastDFS,MinIO）
+
+   优点：容易实现扩容
+
+   缺点：开发复杂度稍大
+
+3. 使用第三方的存储服务（例如OSS）
+
+   优点：开发简单，拥有强大功能，免维护
+
+   缺点：付费
+
+本次采用了阿里云的 OSS 服务进行文件存储，整体流程如下：
+
+![image-20221121174942235](assets/day02/image-20221121174942235.png)
+
+## 实现步骤
+
+查询官方快速入门文档：
+
+1. 创建有 OSS 管理权限的 RAM 用户 Accesskey
+2. 配置 RAM 用户的 AccessKey 环境变量
+
+```bash
+# 设置环境变量
+setx OSS_ACCESS_KEY_ID "YOUR_ACCESS_KEY_ID"
+setx OSS_ACCESS_KEY_SECRET "YOUR_ACCESS_KEY_SECRET"
+
+# 查看环境变量是否生效
+echo %OSS_ACCESS_KEY_ID%
+echo %OSS_ACCESS_KEY_SECRET%
+```
+
+3. 刷新或重启编译允许环境
+4. 导入依赖
+
+```xml
+<dependency>
+    <groupId>com.aliyun.oss</groupId>
+    <artifactId>aliyun-sdk-oss</artifactId>
+    <version>3.17.4</version>
+</dependency>
+```
+
+5. OSS 完整使用流程：创建一个 Bucket、在服务端实现上传文件
+
+* 在 yaml 文件中配置域名、环境变量 AccessKeyId 与 AccessKeySecret、bucket 名称
+* 通过 @ConfigurationProperties 注入属性
+* 创建 OSS 工具类，实现文件上传
+* 通过配置类创建工具类对象，并交给 Spring 容器管理，实现自动注入
+* 编写通用 Controller，接收上传的文件，通过调用 OSS 工具类实现文件上传
+
+```java
+//关键函数
+// 存放的 bucketname，以及上传文件的文件名字 objectname，以及文件字节数组形式
+ossClient.putObject(bucketName, objectName, new ByteArrayInputStream(bytes));
+
+//调用上面的函数需要创建 OSSClient 对象，创建该对象需要 yaml 配置的属性信息
+```
+
+整体流程如下：
+
+![2](assets/day02/2.png)
 
 # 菜品管理模块
-
-TODO 需要补充
 
 这个模块由于涉及多表操作需要注意：
 
 * 对应的 DTO 以及 VO 的设计
 * 事务控制
-* 删除菜品由于涉及多表，删除前需要检查逻辑外键
+* 插入菜品时，通过 ` <insert id="insert" useGeneratedKeys="true" keyProperty="id">` 标签获取新插入的主键 id。
+* 批量插入口味时，用到了标签：`<foreach collection="flavors" item="df" separator=",">`
+* 删除菜品由于涉及多表，删除前需要检查逻辑外键，以及满足业务要求：起售中的菜品不能删，通过设计错误常量信息以及自定义异常完善功能。
 * 修改菜品时，对于口味的修改简化为了删除，再插入
 
